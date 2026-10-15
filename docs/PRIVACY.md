@@ -8,4 +8,4 @@ Job Application Tracker is a self-hosted application that runs locally on the us
 - No data is sold, shared or used for advertising.
 - Access can be revoked at any time at https://myaccount.google.com/permissions.
 
-Questions or concerns: https://github.com/twojnick/job-application-tracker/issues
+Questions or concerns: https://github.com/wuchan33/job-application-tracker/issues
