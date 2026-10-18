@@ -1,14 +1,13 @@
-from pathlib import Path
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import base64
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 
 from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
@@ -27,24 +26,24 @@ def get_service():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), SCOPES)
+                str(CREDENTIALS_PATH), SCOPES
+            )
             creds = flow.run_local_server(port=0)
         TOKEN_PATH.write_text(creds.to_json())
 
     return build("gmail", "v1", credentials=creds)
 
 
-def list_message_ids(
-    service, query: str, max_results: int | None = None
-) -> list[str]:
+def list_message_ids(service, query: str, max_results: int | None = None) -> list[str]:
     ids: list[str] = []
     page_token = None
     while True:
-        response = service.users().messages().list(
-            userId="me",
-            q=query,
-            pageToken=page_token
-        ).execute()
+        response = (
+            service.users()
+            .messages()
+            .list(userId="me", q=query, pageToken=page_token)
+            .execute()
+        )
 
         ids.extend(m["id"] for m in response.get("messages", []))
 
@@ -67,11 +66,9 @@ class EmailData:
 
 
 def get_message(service, msg_id: str) -> EmailData:
-    msg = service.users().messages().get(
-        userId="me",
-        id=msg_id,
-        format="full"
-    ).execute()
+    msg = (
+        service.users().messages().get(userId="me", id=msg_id, format="full").execute()
+    )
 
     headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
     received_at = int(msg["internalDate"]) / 1000
@@ -81,8 +78,8 @@ def get_message(service, msg_id: str) -> EmailData:
         thread_id=msg["threadId"],
         sender=headers.get("From", ""),
         subject=headers.get("Subject", ""),
-        date=datetime.fromtimestamp(received_at, tz=timezone.utc),
-        body=_extract_body(msg["payload"])
+        date=datetime.fromtimestamp(received_at, tz=UTC),
+        body=_extract_body(msg["payload"]),
     )
 
 
