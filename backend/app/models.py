@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column
+from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
@@ -25,8 +25,8 @@ class Application(SQLModel, table=True):
     company: str
     position: str | None = None
     status: EmailType = Field(default=EmailType.APPLIED, sa_column=_enum_column(nullable=False))
-    applied_at: datetime
-    updated_at: datetime
+    applied_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
 class Email(SQLModel, table=True):
@@ -35,6 +35,6 @@ class Email(SQLModel, table=True):
     thread_id: str
     sender: str
     subject: str
-    received_at: datetime
+    received_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     type: EmailType = Field(sa_column=_enum_column(nullable=False))
     application_id: int | None = Field(default=None, foreign_key="application.id")

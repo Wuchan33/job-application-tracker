@@ -1,5 +1,5 @@
 import os
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 MODEL = os.environ["GEMINI_MODEL"]
 
 
-class EmailType(str, Enum):
+class EmailType(StrEnum):
     APPLIED = "applied"
     ONLINE_TEST = "online_test"
     HR_INTERVIEW = "hr_interview"
