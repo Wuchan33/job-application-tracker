@@ -7,7 +7,7 @@ from sqlmodel import Session, create_engine
 ROOT_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT_DIR / ".env")
 
-engine = create_engine(os.environ["DATABASE_URL"], echo=True)
+engine = create_engine(os.environ["DATABASE_URL"])
 
 
 def get_session():
