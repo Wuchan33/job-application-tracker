@@ -1,3 +1,4 @@
+import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -8,8 +9,6 @@ from sqlmodel import Session, select
 from app.models import Application, Email
 from app.services.gmail import get_message, get_service, list_message_ids
 from app.services.llm import EmailType, classify_email
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +135,7 @@ def sync_emails(session: Session) -> SyncResult:
         time.sleep(REQUEST_DELAY_SECONDS)
 
     return result
+
 
 if __name__ == "__main__":
     from app.db import engine

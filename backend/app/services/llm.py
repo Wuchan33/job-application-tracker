@@ -61,7 +61,7 @@ If the email clearly refers to one of the open applications above, return its id
 Use reference numbers, company and position to match. If it's a new application or you're unsure, return null.
 
 Email:
-{email}"""
+{email}"""  # noqa: E501
 
 
 def classify_email(text: str, applications: str = "(none)") -> EmailResult:
