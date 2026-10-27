@@ -1,16 +1,20 @@
 import os
+import time
 from enum import StrEnum
 from pathlib import Path
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors
 from pydantic import BaseModel
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT_DIR / ".env")
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-MODEL = os.environ["GEMINI_MODEL"]
+MODELS = [m.strip() for m in os.environ["GEMINI_MODELS"].split(",") if m.strip()]
+MAX_ROUNDS = 5
+RETRY_DELAY_SECONDS = 15
 
 
 class EmailType(StrEnum):
@@ -30,6 +34,7 @@ class EmailResult(BaseModel):
     company: str | None
     position: str | None
     type: EmailType
+    application_id: int | None
 
 
 PROMPT = """You analyze emails related to a job search.
@@ -46,21 +51,43 @@ and position if present, and classify the email type:
 - rejection: the company ends the process for this candidate
 - other: anything else, including newsletters and job alerts and unrelated emails
 
+Company is the employer, not a job portal or recruitment agency (e.g. not LinkedIn, Pracuj.pl).
+Return the company's short common name without legal form (e.g. "Allegro", not "Allegro sp. z o.o.").
+
+Open applications:
+{applications}
+
+If the email clearly refers to one of the open applications above, return its id in application_id.
+Use reference numbers, company and position to match. If it's a new application or you're unsure, return null.
+
 Email:
 {email}"""
 
 
-def classify_email(text: str) -> EmailResult:
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=PROMPT.format(email=text[:4000]),
-        config={
-            "response_mime_type": "application/json",
-            "response_schema": EmailResult,
-        },
-    )
+def classify_email(text: str, applications: str = "(none)") -> EmailResult:
+    for round_ in range(MAX_ROUNDS):
+        for model in MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=PROMPT.format(email=text[:4000], applications=applications),
+                    config={
+                        "automatic_function_calling": {"disable": True},
+                        "response_mime_type": "application/json",
+                        "response_schema": EmailResult,
+                    },
+                )
+            except errors.APIError as e:
+                if e.code not in (429, 503):
+                    raise
+                last_error = e
+                continue
 
-    if response.parsed is None:
-        raise ValueError(f"Gemini returned no valid result: {response.text!r}")
+            if response.parsed is None:
+                raise ValueError(f"Gemini returned no valid result: {response.text!r}")
+            return response.parsed
 
-    return response.parsed
+        if round_ < MAX_ROUNDS - 1:
+            time.sleep(RETRY_DELAY_SECONDS)
+
+    raise last_error
