@@ -1,18 +1,14 @@
-import os
 import time
 from enum import StrEnum
-from pathlib import Path
 
-from dotenv import load_dotenv
 from google import genai
 from google.genai import errors
 from pydantic import BaseModel
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-load_dotenv(ROOT_DIR / ".env")
+from app.config import settings
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-MODELS = [m.strip() for m in os.environ["GEMINI_MODELS"].split(",") if m.strip()]
+client = genai.Client(api_key=settings.gemini_api_key)
+MODELS = settings.gemini_model_list
 MAX_ROUNDS = 5
 RETRY_DELAY_SECONDS = 15
 

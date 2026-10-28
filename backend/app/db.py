@@ -1,13 +1,8 @@
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
 from sqlmodel import Session, create_engine
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT_DIR / ".env")
+from app.config import settings
 
-engine = create_engine(os.environ["DATABASE_URL"])
+engine = create_engine(settings.database_url)
 
 
 def get_session():
