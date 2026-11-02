@@ -53,14 +53,14 @@ def _format_applications(applications: list[Application]) -> str:
 
     return "\n".join(
         f"[{a.id}] {a.company} - {a.position or 'unknown position'} "
-        f"(applied) {a.applied_at:%Y-%m-%d})"
+        f"(applied {a.applied_at:%Y-%m-%d})"
         for a in applications
     )
 
 
 def _process_email(session: Session, service, msg_id: str) -> None:
     email = get_message(service, msg_id)
-    text = f"Subject: {email.subject}\n From: {email.sender}\n\n{email.body}"
+    text = f"Subject: {email.subject}\nFrom: {email.sender}\n\n{email.body}"
 
     application = _find_application_by_thread(session, email.thread_id)
 
