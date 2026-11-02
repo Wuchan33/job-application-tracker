@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.db import get_session
-from app.services.stats import count_by_period, count_by_status, get_cumulative, get_sankey, Period
+from app.services.stats import Period, count_by_period, count_by_status, get_cumulative, get_sankey
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 

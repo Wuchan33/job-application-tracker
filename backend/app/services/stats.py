@@ -1,15 +1,15 @@
-from datetime import UTC, datetime, timedelta, date
-from typing import Literal
 from collections import Counter, defaultdict
+from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
+from typing import Literal
 
 from sqlmodel import Session, func, select
 
 from app.models import Application, Email
 from app.services.llm import EmailType
-from app.services.sync import CLOSED_STATUSES
 
 GHOSTED_AFTER_DAYS = 30
+
 
 def count_by_status(session: Session, date_from: datetime, date_to: datetime) -> dict[str, int]:
     statement = (
@@ -83,7 +83,7 @@ def _get_application_paths(
     return paths
 
 
-def get_sankey(session: Session, date_from: datetime, date_to:datetime) -> dict:
+def get_sankey(session: Session, date_from: datetime, date_to: datetime) -> dict:
     links: Counter[tuple[str, str]] = Counter()
     for path in _get_application_paths(session, date_from, date_to).values():
         for source, target in pairwise(path):
@@ -96,7 +96,7 @@ def get_sankey(session: Session, date_from: datetime, date_to:datetime) -> dict:
         "links": [
             {"source": index[s], "target": index[t], "value": count}
             for (s, t), count in links.items()
-        ]
+        ],
     }
 
 
@@ -110,14 +110,17 @@ SERIES = {
     EmailType.REJECTION: "rejections",
 }
 
-def _first_reached(session: Session, date_from: datetime, date_to: datetime) -> dict[tuple[int, str], date]:
+
+def _first_reached(
+    session: Session, date_from: datetime, date_to: datetime
+) -> dict[tuple[int, str], date]:
     statement = (
         select(Email.application_id, Email.type, func.min(Email.received_at))
         .where(
             Email.received_at >= date_from,
             Email.received_at < date_to,
             Email.application_id.is_not(None),
-            Email.type.in_(SERIES)
+            Email.type.in_(SERIES),
         )
         .group_by(Email.application_id, Email.type)
     )
@@ -132,7 +135,8 @@ def _first_reached(session: Session, date_from: datetime, date_to: datetime) -> 
 
 LINES = ("applied", "interviews", "rejections", "offers")
 
-def get_cumulative(session:Session, date_from: datetime, date_to: datetime) -> list[dict]:
+
+def get_cumulative(session: Session, date_from: datetime, date_to: datetime) -> list[dict]:
     daily: defaultdict[date, Counter[str]] = defaultdict(Counter)
     for (_, line), day in _first_reached(session, date_from, date_to).items():
         daily[day][line] += 1
@@ -153,4 +157,3 @@ def get_cumulative(session:Session, date_from: datetime, date_to: datetime) -> l
             totals[line] += count
         result.append({"day": day.isoformat(), **totals})
     return result
-    
