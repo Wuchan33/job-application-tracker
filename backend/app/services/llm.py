@@ -1,13 +1,13 @@
 import time
 from enum import StrEnum
 
+import ollama
 from google import genai
 from google.genai import errors
 from pydantic import BaseModel
 
 from app.config import settings
 
-client = genai.Client(api_key=settings.gemini_api_key)
 MODELS = settings.gemini_model_list
 MAX_ROUNDS = 5
 RETRY_DELAY_SECONDS = 15
@@ -60,30 +60,42 @@ Email:
 {email}"""  # noqa: E501
 
 
-def classify_email(text: str, applications: str = "(none)") -> EmailResult:
-    for round_ in range(MAX_ROUNDS):
+def _classify_with_ollama(prompt: str) -> EmailResult:
+    response = ollama.chat(
+        model=settings.ollama_model,
+        messages=[{"role": "user", "content": prompt}],
+        format=EmailResult.model_json_schema(),
+        options={"temperature": 0}
+    )
+    return EmailResult.model_validate_json(response.message.content)
+
+def _classify_with_gemini(prompt: str) -> EmailResult:
+    if settings.gemini_api_key is None:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    client = genai.Client(api_key=settings.gemini_api_key)
+
+    for round_number in range(MAX_ROUNDS):
         for model in MODELS:
             try:
                 response = client.models.generate_content(
                     model=model,
-                    contents=PROMPT.format(email=text[:4000], applications=applications),
+                    contents=prompt,
                     config={
-                        "automatic_function_calling": {"disable": True},
                         "response_mime_type": "application/json",
                         "response_schema": EmailResult,
+                        "automatic_function_calling": {"disable": True},
                     },
                 )
+                return response.parsed
             except errors.APIError as e:
-                if e.code not in (429, 503):
-                    raise
-                last_error = e
-                continue
+                print(f"{model} failed (round {round_number + 1}): {e}")
+        time.sleep(RETRY_DELAY_SECONDS)
 
-            if response.parsed is None:
-                raise ValueError(f"Gemini returned no valid result: {response.text!r}")
-            return response.parsed
+    raise RuntimeError("All Gemini models failed")
 
-        if round_ < MAX_ROUNDS - 1:
-            time.sleep(RETRY_DELAY_SECONDS)
 
-    raise last_error
+def classify_email(text: str, applications: str = "(none)") -> EmailResult:
+    prompt = PROMPT.format(applications=applications, email=text)
+    if settings.llm_provider == "gemini":
+        return _classify_with_gemini(prompt)
+    return _classify_with_ollama(prompt)
