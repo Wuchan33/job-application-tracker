@@ -13,7 +13,7 @@ from app.services.llm import EmailType, classify_email
 logger = logging.getLogger(__name__)
 
 CLOSED_STATUSES = (EmailType.REJECTION, EmailType.OFFER)
-OPEN_APPLICATION_DAYS = 120
+OPEN_APPLICATION_DAYS = 90
 GMAIL_QUERY = "newer_than:7d -category:promotions -category:social -category:forums"
 REQUEST_DELAY_SECONDS = 5
 
