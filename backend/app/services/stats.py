@@ -9,6 +9,29 @@ from app.models import Application, Email
 from app.services.llm import EmailType
 
 GHOSTED_AFTER_DAYS = 30
+Period = Literal["day", "week", "month"]
+GROUP_ORDER = ["applied", "screening", "technical", "offer", "rejection"]
+CLOSED_GROUPS = ("offer", "rejection")
+LINES = ("applied", "interviews", "rejections", "offers")
+STAGE_GROUPS = {
+    EmailType.APPLIED: "applied",
+    EmailType.ONLINE_TEST: "screening",
+    EmailType.HR_INTERVIEW: "screening",
+    EmailType.TECHNICAL_INTERVIEW: "technical",
+    EmailType.TAKE_HOME: "technical",
+    EmailType.FINAL_INTERVIEW: "technical",
+    EmailType.OFFER: "offer",
+    EmailType.REJECTION: "rejection",
+}
+SERIES = {
+    EmailType.ONLINE_TEST: "interviews",
+    EmailType.HR_INTERVIEW: "interviews",
+    EmailType.TECHNICAL_INTERVIEW: "interviews",
+    EmailType.TAKE_HOME: "interviews",
+    EmailType.FINAL_INTERVIEW: "interviews",
+    EmailType.OFFER: "offers",
+    EmailType.REJECTION: "rejections",
+}
 
 
 def count_by_status(session: Session, date_from: datetime, date_to: datetime) -> dict[str, int]:
@@ -18,9 +41,6 @@ def count_by_status(session: Session, date_from: datetime, date_to: datetime) ->
         .group_by(Application.status)
     )
     return {status: count for status, count in session.exec(statement).all()}
-
-
-Period = Literal["day", "week", "month"]
 
 
 def count_by_period(
@@ -38,20 +58,6 @@ def count_by_period(
         key = b.date().isoformat()
         periods.setdefault(key, {"period": key})[status] = count
     return list(periods.values())
-
-
-STAGE_GROUPS = {
-    EmailType.APPLIED: "applied",
-    EmailType.ONLINE_TEST: "screening",
-    EmailType.HR_INTERVIEW: "screening",
-    EmailType.TECHNICAL_INTERVIEW: "technical",
-    EmailType.TAKE_HOME: "technical",
-    EmailType.FINAL_INTERVIEW: "technical",
-    EmailType.OFFER: "offer",
-    EmailType.REJECTION: "rejection",
-}
-GROUP_ORDER = ["applied", "screening", "technical", "offer", "rejection"]
-CLOSED_GROUPS = ("offer", "rejection")
 
 
 def _get_application_paths(
@@ -100,17 +106,6 @@ def get_sankey(session: Session, date_from: datetime, date_to: datetime) -> dict
     }
 
 
-SERIES = {
-    EmailType.ONLINE_TEST: "interviews",
-    EmailType.HR_INTERVIEW: "interviews",
-    EmailType.TECHNICAL_INTERVIEW: "interviews",
-    EmailType.TAKE_HOME: "interviews",
-    EmailType.FINAL_INTERVIEW: "interviews",
-    EmailType.OFFER: "offers",
-    EmailType.REJECTION: "rejections",
-}
-
-
 def _first_reached(
     session: Session, date_from: datetime, date_to: datetime
 ) -> dict[tuple[int, str], date]:
@@ -131,9 +126,6 @@ def _first_reached(
         if key not in first or day < first[key]:
             first[key] = day
     return first
-
-
-LINES = ("applied", "interviews", "rejections", "offers")
 
 
 def get_cumulative(session: Session, date_from: datetime, date_to: datetime) -> list[dict]:
