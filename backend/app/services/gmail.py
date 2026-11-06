@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -16,6 +17,11 @@ CREDENTIALS_PATH = BACKEND_DIR / "credentials.json"
 TOKEN_PATH = BACKEND_DIR / "token.json"
 
 
+def _login() -> Credentials:
+    flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_PATH), SCOPES)
+    return flow.run_local_server(port=0)
+
+
 def get_service():
     creds = None
     if TOKEN_PATH.exists():
@@ -23,12 +29,13 @@ def get_service():
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except RefreshError:
+                TOKEN_PATH.unlink()
+                creds = _login()
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CREDENTIALS_PATH), SCOPES
-            )
-            creds = flow.run_local_server(port=0)
+            creds = _login()
         TOKEN_PATH.write_text(creds.to_json())
 
     return build("gmail", "v1", credentials=creds)
@@ -39,10 +46,7 @@ def list_message_ids(service, query: str, max_results: int | None = None) -> lis
     page_token = None
     while True:
         response = (
-            service.users()
-            .messages()
-            .list(userId="me", q=query, pageToken=page_token)
-            .execute()
+            service.users().messages().list(userId="me", q=query, pageToken=page_token).execute()
         )
 
         ids.extend(m["id"] for m in response.get("messages", []))
@@ -66,9 +70,7 @@ class EmailData:
 
 
 def get_message(service, msg_id: str) -> EmailData:
-    msg = (
-        service.users().messages().get(userId="me", id=msg_id, format="full").execute()
-    )
+    msg = service.users().messages().get(userId="me", id=msg_id, format="full").execute()
 
     headers = {h["name"]: h["value"] for h in msg["payload"]["headers"]}
     received_at = int(msg["internalDate"]) / 1000
