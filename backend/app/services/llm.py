@@ -1,3 +1,4 @@
+import logging
 import time
 from enum import StrEnum
 
@@ -8,9 +9,14 @@ from pydantic import BaseModel
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 MODELS = settings.gemini_model_list
 MAX_ROUNDS = 5
 RETRY_DELAY_SECONDS = 15
+
+
+class LLMUnavailableError(Exception):
+    pass
 
 
 class EmailType(StrEnum):
@@ -61,13 +67,17 @@ Email:
 
 
 def _classify_with_ollama(prompt: str) -> EmailResult:
-    response = ollama.chat(
-        model=settings.ollama_model,
-        messages=[{"role": "user", "content": prompt}],
-        format=EmailResult.model_json_schema(),
-        options={"temperature": 0}
-    )
+    try:
+        response = ollama.chat(
+            model=settings.ollama_model,
+            messages=[{"role": "user", "content": prompt}],
+            format=EmailResult.model_json_schema(),
+            options={"temperature": 0},
+        )
+    except (ConnectionError, ollama.ResponseError) as e:
+        raise LLMUnavailableError(f"Ollama unavailable: {e}") from e
     return EmailResult.model_validate_json(response.message.content)
+
 
 def _classify_with_gemini(prompt: str) -> EmailResult:
     if settings.gemini_api_key is None:
@@ -88,10 +98,10 @@ def _classify_with_gemini(prompt: str) -> EmailResult:
                 )
                 return response.parsed
             except errors.APIError as e:
-                print(f"{model} failed (round {round_number + 1}): {e}")
+                logger.warning("%s failed (round %d): %s", model, round_number + 1, e)
         time.sleep(RETRY_DELAY_SECONDS)
 
-    raise RuntimeError("All Gemini models failed")
+    raise LLMUnavailableError("All Gemini models failed")
 
 
 def classify_email(text: str, applications: str = "(none)") -> EmailResult:

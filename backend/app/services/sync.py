@@ -3,12 +3,12 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from google.genai import errors
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.models import Application, Email
 from app.services.gmail import get_message, get_service, list_message_ids
-from app.services.llm import EmailType, classify_email
+from app.services.llm import EmailType, LLMUnavailableError, classify_email
 
 logger = logging.getLogger(__name__)
 
@@ -118,21 +118,23 @@ def sync_emails(session: Session) -> SyncResult:
     new_ids = [i for i in reversed(gmail_ids) if i not in known]
 
     result = SyncResult()
-    for msg_id in new_ids:
+    for i, msg_id in enumerate(new_ids, start=1):
+        logger.info("Processing email %d/%d", i, len(new_ids))
         try:
             _process_email(session, service, msg_id)
             session.commit()
             result.processed += 1
-        except errors.APIError as e:
+        except LLMUnavailableError as e:
             session.rollback()
-            logger.warning("Gemini unavailable, stopping sync: %s", e)
+            logger.warning("LLM unavailable, stopping sync: %s", e)
             result.stopped_early = True
             break
         except Exception:
             session.rollback()
             logger.exception("Failed to process email %s", msg_id)
             result.failed += 1
-        time.sleep(REQUEST_DELAY_SECONDS)
+        if settings.llm_provider == "gemini":
+            time.sleep(REQUEST_DELAY_SECONDS)
 
     return result
 
