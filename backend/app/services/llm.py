@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 MODELS = settings.gemini_model_list
 MAX_ROUNDS = 5
 RETRY_DELAY_SECONDS = 15
+MAX_EMAIL_CHARS = 4000
+OLLAMA_CONTEXT_TOKENS = 8192
+RETRYABLE_STATUS_CODES = (429, 503)
 
 
 class LLMUnavailableError(Exception):
@@ -72,7 +75,7 @@ def _classify_with_ollama(prompt: str) -> EmailResult:
             model=settings.ollama_model,
             messages=[{"role": "user", "content": prompt}],
             format=EmailResult.model_json_schema(),
-            options={"temperature": 0},
+            options={"temperature": 0, "num_ctx": OLLAMA_CONTEXT_TOKENS},
         )
     except (ConnectionError, ollama.ResponseError) as e:
         raise LLMUnavailableError(f"Ollama unavailable: {e}") from e
@@ -80,8 +83,10 @@ def _classify_with_ollama(prompt: str) -> EmailResult:
 
 
 def _classify_with_gemini(prompt: str) -> EmailResult:
-    if settings.gemini_api_key is None:
-        raise RuntimeError("GEMINI_API_KEY is not set")
+    if not settings.gemini_api_key:
+        raise LLMUnavailableError("GEMINI_API_KEY is not set")
+    if not MODELS:
+        raise LLMUnavailableError("GEMINI_MODELS is not set")
     client = genai.Client(api_key=settings.gemini_api_key)
 
     for round_number in range(MAX_ROUNDS):
@@ -96,16 +101,24 @@ def _classify_with_gemini(prompt: str) -> EmailResult:
                         "automatic_function_calling": {"disable": True},
                     },
                 )
-                return response.parsed
             except errors.APIError as e:
+                if e.code not in RETRYABLE_STATUS_CODES:
+                    raise
                 logger.warning("%s failed (round %d): %s", model, round_number + 1, e)
-        time.sleep(RETRY_DELAY_SECONDS)
+                continue
+
+            if response.parsed is None:
+                raise ValueError(f"Gemini returned no valid result: {response.text!r}")
+            return response.parsed
+
+        if round_number < MAX_ROUNDS - 1:
+            time.sleep(RETRY_DELAY_SECONDS)
 
     raise LLMUnavailableError("All Gemini models failed")
 
 
 def classify_email(text: str, applications: str = "(none)") -> EmailResult:
-    prompt = PROMPT.format(applications=applications, email=text)
+    prompt = PROMPT.format(applications=applications, email=text[:MAX_EMAIL_CHARS])
     if settings.llm_provider == "gemini":
         return _classify_with_gemini(prompt)
     return _classify_with_ollama(prompt)

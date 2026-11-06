@@ -9,11 +9,11 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
-    gemini_api_key: str
-    gemini_models: str
+    gemini_api_key: str | None = None
+    gemini_models: str = ""
     database_url: str
     ollama_model: str
-    llm_provider: Literal["gemini", "ollama"]
+    llm_provider: Literal["gemini", "ollama"] = "ollama"
 
     @property
     def gemini_model_list(self) -> list[str]:
