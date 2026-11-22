@@ -12,25 +12,15 @@ GHOSTED_AFTER_DAYS = 30
 Period = Literal["day", "week", "month"]
 GROUP_ORDER = ["applied", "screening", "technical", "offer", "rejection"]
 CLOSED_GROUPS = ("offer", "rejection")
-LINES = ("applied", "interviews", "rejections", "offers")
+LINES = tuple(t.value for t in EmailType if t != EmailType.OTHER)
+
 STAGE_GROUPS = {
     EmailType.APPLIED: "applied",
-    EmailType.ONLINE_TEST: "screening",
+    EmailType.ONLINE_ASSESSMENT: "screening",
     EmailType.HR_INTERVIEW: "screening",
-    EmailType.TECHNICAL_INTERVIEW: "technical",
-    EmailType.TAKE_HOME: "technical",
-    EmailType.FINAL_INTERVIEW: "technical",
+    EmailType.INTERVIEW: "technical",
     EmailType.OFFER: "offer",
     EmailType.REJECTION: "rejection",
-}
-SERIES = {
-    EmailType.ONLINE_TEST: "interviews",
-    EmailType.HR_INTERVIEW: "interviews",
-    EmailType.TECHNICAL_INTERVIEW: "interviews",
-    EmailType.TAKE_HOME: "interviews",
-    EmailType.FINAL_INTERVIEW: "interviews",
-    EmailType.OFFER: "offers",
-    EmailType.REJECTION: "rejections",
 }
 
 
@@ -115,17 +105,14 @@ def _first_reached(
             Email.received_at >= date_from,
             Email.received_at < date_to,
             Email.application_id.is_not(None),
-            Email.type.in_(SERIES),
+            Email.type.not_in((EmailType.APPLIED, EmailType.OTHER)),
         )
         .group_by(Email.application_id, Email.type)
     )
-    first: dict[tuple[int, str], date] = {}
-    for application_id, email_type, received_at in session.exec(statement).all():
-        key = (application_id, SERIES[email_type])
-        day = received_at.date()
-        if key not in first or day < first[key]:
-            first[key] = day
-    return first
+    return {
+        (application_id, email_type): received_at.date()
+        for application_id, email_type, received_at in session.exec(statement).all()
+    }
 
 
 def get_cumulative(session: Session, date_from: datetime, date_to: datetime) -> list[dict]:

@@ -24,11 +24,9 @@ class LLMUnavailableError(Exception):
 
 class EmailType(StrEnum):
     APPLIED = "applied"
-    ONLINE_TEST = "online_test"
+    ONLINE_ASSESSMENT = "online_assessment"
     HR_INTERVIEW = "hr_interview"
-    TECHNICAL_INTERVIEW = "technical_interview"
-    TAKE_HOME = "take_home"
-    FINAL_INTERVIEW = "final_interview"
+    INTERVIEW = "interview"
     OFFER = "offer"
     REJECTION = "rejection"
     OTHER = "other"
@@ -47,11 +45,11 @@ Decide whether the email is about a specific job application, extract the compan
 and position if present, and classify the email type:
 
 - applied: the candidate submitted an application, or the company confirms receiving it
-- online_test: invitation to a timed online test (e.g. Codility, HackerRank, TestGorilla)
-- hr_interview: invitation to an interview with HR or a recruiter
-- technical_interview: invitation to a technical interview
-- take_home: a home assignment to complete over several days
-- final_interview: final round, e.g. with a manager or the team
+- online_assessment: a task the candidate completes alone, without an interviewer present
+  (e.g. Codility or HackerRank tests, questionnaires, case studies, home assignments)
+- hr_interview: invitation to a first interview or call with HR or a recruiter
+- interview: invitation to any later interview with people from the company
+  (e.g. technical, with a manager or the team, final round)
 - offer: a job offer
 - rejection: the company ends the process for this candidate
 - other: anything else, including newsletters and job alerts and unrelated emails
