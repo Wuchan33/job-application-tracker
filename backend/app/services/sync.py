@@ -137,11 +137,3 @@ def sync_emails(session: Session) -> SyncResult:
             time.sleep(REQUEST_DELAY_SECONDS)
 
     return result
-
-
-if __name__ == "__main__":
-    from app.db import engine
-
-    logging.basicConfig(level=logging.INFO)
-    with Session(engine) as session:
-        print(sync_emails(session))
