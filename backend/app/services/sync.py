@@ -95,8 +95,6 @@ def _process_email(session: Session, service, msg_id: str) -> None:
         Email(
             gmail_id=email.gmail_id,
             thread_id=email.thread_id,
-            sender=email.sender,
-            subject=email.subject,
             received_at=email.date,
             type=result.type,
             application_id=application.id if application else None,

@@ -33,8 +33,11 @@ class Email(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     gmail_id: str = Field(unique=True)
     thread_id: str
-    sender: str
-    subject: str
     received_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     type: EmailType = Field(sa_column=_enum_column(nullable=False))
     application_id: int | None = Field(default=None, foreign_key="application.id")
+
+
+class SyncRun(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    started_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
