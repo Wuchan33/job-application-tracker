@@ -1,6 +1,7 @@
 import base64
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from email.message import Message
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -89,6 +90,21 @@ def _html_to_text(html: str) -> str:
     return soup.get_text(separator="\n", strip=True)
 
 
+def _get_charset(part: dict) -> str:
+    msg = Message()
+    for h in part.get("headers", []):
+        if h["name"].lower() == "content-type":
+            msg["Content-Type"] = h["value"]
+    return msg.get_content_charset() or "utf-8"
+
+
+def _decode(raw: bytes, charset: str) -> str:
+    try:
+        return raw.decode(charset, errors="replace")
+    except LookupError:
+        return raw.decode("utf-8", errors="replace")
+
+
 def _extract_body(payload: dict) -> str:
     plain, html = [], []
 
@@ -96,7 +112,7 @@ def _extract_body(payload: dict) -> str:
         data = part.get("body", {}).get("data")
         if data:
             raw = base64.urlsafe_b64decode(data)
-            text = raw.decode("utf-8", errors="replace")
+            text = _decode(raw, _get_charset(part))
             if part.get("mimeType") == "text/plain":
                 plain.append(text)
             if part.get("mimeType") == "text/html":
