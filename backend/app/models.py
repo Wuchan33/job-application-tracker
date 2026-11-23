@@ -1,10 +1,19 @@
 from datetime import datetime
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
-from app.services.llm import EmailType
+
+class EmailType(StrEnum):
+    APPLIED = "applied"
+    ONLINE_ASSESSMENT = "online_assessment"
+    HR_INTERVIEW = "hr_interview"
+    INTERVIEW = "interview"
+    OFFER = "offer"
+    REJECTION = "rejection"
+    OTHER = "other"
 
 
 def _enum_column(**kwargs) -> Column:

@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import Session, select
 
 from app.config import settings
-from app.models import Application, Email
+from app.models import Application, Email, EmailType
 from app.services.gmail import get_message, get_service, list_message_ids
-from app.services.llm import EmailType, LLMUnavailableError, classify_email
+from app.services.llm import LLMUnavailableError, classify_email
 
 logger = logging.getLogger(__name__)
 

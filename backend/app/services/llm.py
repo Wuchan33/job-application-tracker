@@ -1,6 +1,5 @@
 import logging
 import time
-from enum import StrEnum
 
 import ollama
 from google import genai
@@ -8,6 +7,7 @@ from google.genai import errors
 from pydantic import BaseModel
 
 from app.config import settings
+from app.models import EmailType
 
 logger = logging.getLogger(__name__)
 MODELS = settings.gemini_model_list
@@ -20,16 +20,6 @@ RETRYABLE_STATUS_CODES = (429, 503)
 
 class LLMUnavailableError(Exception):
     pass
-
-
-class EmailType(StrEnum):
-    APPLIED = "applied"
-    ONLINE_ASSESSMENT = "online_assessment"
-    HR_INTERVIEW = "hr_interview"
-    INTERVIEW = "interview"
-    OFFER = "offer"
-    REJECTION = "rejection"
-    OTHER = "other"
 
 
 class EmailResult(BaseModel):

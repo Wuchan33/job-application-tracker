@@ -5,8 +5,7 @@ from typing import Literal
 
 from sqlmodel import Session, func, select
 
-from app.models import Application, Email
-from app.services.llm import EmailType
+from app.models import Application, Email, EmailType
 
 GHOSTED_AFTER_DAYS = 30
 Period = Literal["day", "week", "month"]
