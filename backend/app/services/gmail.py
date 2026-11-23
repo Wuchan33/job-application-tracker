@@ -41,7 +41,7 @@ def get_service():
     return build("gmail", "v1", credentials=creds)
 
 
-def list_message_ids(service, query: str, max_results: int | None = None) -> list[str]:
+def list_message_ids(service, query: str) -> list[str]:
     ids: list[str] = []
     page_token = None
     while True:
@@ -50,9 +50,6 @@ def list_message_ids(service, query: str, max_results: int | None = None) -> lis
         )
 
         ids.extend(m["id"] for m in response.get("messages", []))
-
-        if max_results is not None and len(ids) >= max_results:
-            return ids[:max_results]
 
         page_token = response.get("nextPageToken")
         if not page_token:
