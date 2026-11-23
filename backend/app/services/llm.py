@@ -10,9 +10,8 @@ from app.config import settings
 from app.models import EmailType
 
 logger = logging.getLogger(__name__)
-MODELS = settings.gemini_model_list
 MAX_ROUNDS = 5
-RETRY_DELAY_SECONDS = 15
+REQUEST_DELAY_SECONDS = 4
 MAX_EMAIL_CHARS = 4000
 OLLAMA_CONTEXT_TOKENS = 8192
 RETRYABLE_STATUS_CODES = (429, 503)
@@ -73,12 +72,13 @@ def _classify_with_ollama(prompt: str) -> EmailResult:
 def _classify_with_gemini(prompt: str) -> EmailResult:
     if not settings.gemini_api_key:
         raise LLMUnavailableError("GEMINI_API_KEY is not set")
-    if not MODELS:
+    if not settings.gemini_model_list:
         raise LLMUnavailableError("GEMINI_MODELS is not set")
+
     client = genai.Client(api_key=settings.gemini_api_key)
 
     for round_number in range(MAX_ROUNDS):
-        for model in MODELS:
+        for model in settings.gemini_model_list:
             try:
                 response = client.models.generate_content(
                     model=model,
@@ -89,24 +89,28 @@ def _classify_with_gemini(prompt: str) -> EmailResult:
                         "automatic_function_calling": {"disable": True},
                     },
                 )
-            except errors.APIError as e:
-                if e.code not in RETRYABLE_STATUS_CODES:
+            except errors.APIError as err:
+                if err.code not in RETRYABLE_STATUS_CODES:
                     raise
-                logger.warning("%s failed (round %d): %s", model, round_number + 1, e)
+                logger.warning("%s failed (round %d): %s", model, round_number + 1, err)
                 continue
+            finally:
+                time.sleep(REQUEST_DELAY_SECONDS)
 
             if response.parsed is None:
                 raise ValueError(f"Gemini returned no valid result: {response.text!r}")
-            return response.parsed
 
-        if round_number < MAX_ROUNDS - 1:
-            time.sleep(RETRY_DELAY_SECONDS)
+            return response.parsed
 
     raise LLMUnavailableError("All Gemini models failed")
 
 
+PROVIDERS = {
+    "ollama": _classify_with_ollama,
+    "gemini": _classify_with_gemini,
+}
+
+
 def classify_email(text: str, applications: str = "(none)") -> EmailResult:
     prompt = PROMPT.format(applications=applications, email=text[:MAX_EMAIL_CHARS])
-    if settings.llm_provider == "gemini":
-        return _classify_with_gemini(prompt)
-    return _classify_with_ollama(prompt)
+    return PROVIDERS[settings.llm_provider](prompt)

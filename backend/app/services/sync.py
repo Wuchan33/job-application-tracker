@@ -1,11 +1,9 @@
 import logging
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, select
 
-from app.config import settings
 from app.models import Application, Email, EmailType
 from app.services.gmail import get_message, get_service, list_message_ids
 from app.services.llm import LLMUnavailableError, classify_email
@@ -15,7 +13,6 @@ logger = logging.getLogger(__name__)
 CLOSED_STATUSES = (EmailType.REJECTION, EmailType.OFFER)
 OPEN_APPLICATION_DAYS = 90
 GMAIL_QUERY = "newer_than:7d -category:promotions -category:social -category:forums"
-REQUEST_DELAY_SECONDS = 5
 
 
 def _get_known_ids(session: Session, gmail_ids: list[str]) -> set[str]:
@@ -131,7 +128,5 @@ def sync_emails(session: Session) -> SyncResult:
             session.rollback()
             logger.exception("Failed to process email %s", msg_id)
             result.failed += 1
-        if settings.llm_provider == "gemini":
-            time.sleep(REQUEST_DELAY_SECONDS)
 
     return result
